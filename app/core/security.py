@@ -15,7 +15,6 @@ from typing import Any, Annotated
 import bcrypt
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
-from jwt import InvalidTokenError
 
 from config import settings
 
@@ -92,18 +91,16 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> Any
     :param token:
     :return:
     """
+    from app.crud.crud_user import crud_user
 
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username = payload.get("sub")
-        if username is None:
-            raise "credentials_exception"
-        # token_data = TokenData(username=username)
-    except InvalidTokenError:
-        raise "credentials_exception"
-    user = "get_user(fake_users_db, username=token_data.username)"
+    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    username = payload.get("sub")
+    if username is None:
+        raise Exception("Invalid token")
+    user = await crud_user.get(username)
+
     if user is None:
-        raise "credentials_exception"
+        raise Exception("Invalid token")
     return user
 
 

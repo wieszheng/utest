@@ -39,3 +39,9 @@
 - 🦾 **Powerful CRUD Functionality**
 - 🔐 **User authentication with JWT**
 - 🚚 **Easy running with docker compose**
+
+### 🏬 架构
+
+![Simplified, conceptual project structure and main application flow](docs/structure.svg)
+
+_图：简化的概念性项目结构和主要应用程序流。并非所有依赖项都显示。_

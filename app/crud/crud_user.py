@@ -27,4 +27,4 @@ class CRUDUser(BaseCRUD[User]):
         return await self.create(session, obj=obj)
 
 
-crud_users: CRUDUser = CRUDUser(User)
+crud_user: CRUDUser = CRUDUser(User)

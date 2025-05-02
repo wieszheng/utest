@@ -8,10 +8,21 @@
 """
 
 from datetime import datetime, timezone
-from typing import Generic, Any, TypeVar, Type, Union, Optional
+from typing import Generic, Any, TypeVar, Type, Union, Optional, Iterable, List
 
 from pydantic import BaseModel
-from sqlalchemy import select, Row, update, func, delete, inspect, desc, asc
+from sqlalchemy import (
+    select,
+    Row,
+    update,
+    func,
+    delete,
+    inspect,
+    desc,
+    asc,
+    BinaryExpression,
+    Select,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.enums.status import OrderEnum
@@ -30,17 +41,14 @@ class BaseCRUD(Generic[ModelType]):
     def __init__(
         self,
         model: Type[ModelType],
-        is_deleted_column: str = "is_deleted",
-        deleted_at_column: str = "deleted_at",
-        updated_at_column: str = "updated_at",
     ) -> None:
         self.model = model
         self.model_col_names = [col.key for col in model.__table__.columns]
-        self.is_deleted_column = is_deleted_column
-        self.deleted_at_column = deleted_at_column
-        self.updated_at_column = updated_at_column
+        self.is_deleted_column: str = "is_deleted"
+        self.deleted_at_column: str = "deleted_at"
+        self.updated_at_column: str = "updated_at"
 
-    def _parse_filters(self, **kwargs: Any) -> list[Any]:
+    def _parse_filters(self, **kwargs: Any) -> list[BinaryExpression]:
         """
         解析过滤器
             直接传值：id=1
@@ -79,98 +87,23 @@ class BaseCRUD(Generic[ModelType]):
                 raise ValueError(f"Invalid column name: {key}")
         return filters
 
-    async def create(
+    def _apply_order_by(
         self,
-        session: AsyncSession,
-        obj: Union[CreateSchemaType, dict[str, Any]],
-        commit: bool = True,
-    ) -> ModelType:
+        query: Select,
+        order_bys: Union[str, list[str]],
+        orders: Union[OrderEnum, list[OrderEnum]],
+    ) -> Select:
         """
-        创建模型的新实例
+        应用排序条件
 
-        :param session：SQLAlchemy 异步会话.
-        :param obj: 包含要保存的数据的 Pydantic 模式或字典.
-        :param commit: 如果为 'True'，则立即提交事务。默认值为 'True'.
-        :return:
-        """
-        if isinstance(obj, dict):
-            data: ModelType = self.model(**obj)
-        else:
-            data: ModelType = self.model(**obj.model_dump())
-
-        session.add(data)
-        if commit:
-            await session.commit()
-        return data
-
-    async def get(
-        self,
-        session: AsyncSession,
-        **kwargs: Any,
-    ) -> ModelType | None:
-        """
-        获取模型实例
-        :param session: 用于执行数据库操作的异步会话对象
-        :param kwargs: 用于构建查询过滤条件的任意关键字参数
-        :return:
-        """
-        filters = self._parse_filters(**kwargs)
-        query = select(self.model).filter(*filters)
-        row = await session.execute(query)
-        result: Optional[Row] = row.scalar_one_or_none()
-        if result is None:
-            return None
-        return result
-
-    async def get_multiple(
-        self,
-        session: AsyncSession,
-        offset: int = 0,
-        limit: int = 100,
-        **kwargs: Any,
-    ) -> list[ModelType]:
-        """
-        获取模型实例列表
-        :param session:
-        :param offset:
-        :param limit:
-        :param kwargs:
-        :return:
-        """
-        if (limit is not None and limit < 0) or offset < 0:
-            raise ValueError("Limit and offset must be non-negative.")
-
-        filters = self._parse_filters(**kwargs)
-        query = select(self.model).filter(*filters).offset(offset).limit(limit)
-        rows = await session.execute(query)
-
-        return [row for row in rows]
-
-    async def get_multiple_ordered(
-        self,
-        session: AsyncSession,
-        order_bys: list[str] | str = "uid",
-        orders: list[OrderEnum] | OrderEnum = OrderEnum.ascent,
-        offset: int = 0,
-        limit: int = 100,
-        **kwargs: Any,
-    ) -> list[ModelType]:
-        """
-        获取模型实例列表，并按多个字段排序
-
-        :param session: SQLAlchemy 异步会话对象
+        :param query: SQLAlchemy 查询对象
         :param order_bys: 排序字段列表，例如 ["name", "age"] 或单个字段字符串
         :param orders: 对应每个字段的排序方式列表，例如 [OrderEnum.ascent, OrderEnum.desc]
-        :param offset: 起始偏移量
-        :param limit: 查询数量限制
-        :param kwargs: 用于构建查询过滤条件的任意关键字参数
-        :return: 按照指定字段排序后的模型实例列表
+        :return:
         """
-        if (limit is not None and limit < 0) or offset < 0:
-            raise ValueError("Limit and offset must be non-negative.")
-
         if isinstance(order_bys, str):
             order_bys = [order_bys]
+
         if isinstance(orders, OrderEnum):
             orders = [orders] * len(order_bys)
 
@@ -181,8 +114,6 @@ class BaseCRUD(Generic[ModelType]):
             if field not in self.model_col_names:
                 raise ValueError(f"Invalid column name for order_by: {field}")
 
-        filters = self._parse_filters(**kwargs)
-        query = select(self.model).filter(*filters)
         for order_by, order in zip(order_bys, orders):
             query = query.order_by(
                 asc(getattr(self.model, order_by))
@@ -190,11 +121,149 @@ class BaseCRUD(Generic[ModelType]):
                 else desc(getattr(self.model, order_by))
             )
 
-        query = query.offset(offset).limit(limit)
+        return query
 
-        rows = await session.execute(query)
+    async def create(
+        self,
+        session: AsyncSession,
+        obj: Union[CreateSchemaType, dict[str, Any]],
+        commit: bool = True,
+    ) -> ModelType:
+        """
+        创建模型的新实例
 
-        return [row for row in rows]
+        :param session：异步数据库会话.
+        :param obj: 包含要保存的数据的 Pydantic 模式或字典.
+        :param commit: 如果为 'True'，则立即提交事务。默认值为 'True'.
+        :return:
+        """
+        if isinstance(obj, dict):
+            ins: ModelType = self.model(**obj)
+        else:
+            ins: ModelType = self.model(**obj.model_dump())
+
+        session.add(ins)
+        if commit:
+            await session.commit()
+        return ins
+
+    async def create_multiple(
+        self,
+        session: AsyncSession,
+        objs: Iterable[Union[CreateSchemaType, dict[str, Any]]],
+        commit: bool = True,
+    ) -> List[ModelType]:
+        """
+        创建多个模型的新示例
+
+        :param session：异步数据库会话.
+        :param objs: 包含要保存的多个数据的 Pydantic 模式或字典的列表.
+        :param commit: 如果为 'True'，则立即提交事务。默认值为 'True'.
+        :return:
+        """
+        ins_list: list[ModelType] = []
+        for obj in objs:
+            if isinstance(obj, dict):
+                ins_list.append(self.model(**obj))
+            else:
+                ins_list.append(self.model(**obj.model_dump()))
+
+        session.add_all(ins_list)
+
+        if commit:
+            await session.commit()
+
+        return ins_list
+
+    async def get(
+        self,
+        session: AsyncSession,
+        **kwargs: Any,
+    ) -> ModelType | None:
+        """
+        获取模型实例
+        :param session: 异步数据库会话.
+        :param kwargs: 用于构建查询过滤条件的任意关键字参数.
+        :return:
+        """
+        filters = self._parse_filters(**kwargs)
+        query = select(self.model).filter(*filters)
+        row = await session.execute(query)
+        result: Optional[Row] = row.scalar_one_or_none()
+        if result is None:
+            return None
+        return result
+
+    async def exists(self, session: AsyncSession, **kwargs: Any) -> bool:
+        """
+        检查模型实例是否存在
+        :param session: 异步数据库会话.
+        :param kwargs: 用于构建查询过滤条件的任意关键字参数.
+        :return:
+        """
+        filters = self._parse_filters(**kwargs)
+        query = select(self.model).filter(*filters).limit(1)
+
+        row = await session.execute(query)
+        return row.first() is not None
+
+    async def get_multiple(
+        self,
+        session: AsyncSession,
+        offset: int = 0,
+        limit: int = 100,
+        **kwargs: Any,
+    ) -> list[ModelType]:
+        """
+        获取模型实例列表
+        :param session: 异步数据库会话
+        :param offset: 查询偏移量，必须为非负整数
+        :param limit: 查询条目上限，必须为非负整数，None 表示无上限（慎用）
+        :param kwargs: 过滤条件，传递给 _parse_filters 方法
+        :return: 模型实例列表
+        """
+        if (limit is not None and limit < 0) or offset < 0:
+            raise ValueError("Limit and offset must be non-negative.")
+
+        filters = self._parse_filters(**kwargs)
+        query = select(self.model).filter(*filters).offset(offset).limit(limit)
+        result = await session.execute(query)
+
+        return list(result.scalars().all())
+
+    async def get_multiple_ordered(
+        self,
+        session: AsyncSession,
+        order_bys: Union[str, list[str]] = "uid",
+        orders: Union[str, list[OrderEnum]] = OrderEnum.ascent,
+        offset: int = 0,
+        limit: int = 100,
+        **kwargs: Any,
+    ) -> list[ModelType]:
+        """
+        获取模型实例列表，并按多个字段排序
+
+        :param session: 异步数据库会话
+        :param order_bys: 排序字段列表，例如 ["name", "age"] 或单个字段字符串
+        :param orders: 对应每个字段的排序方式列表，例如 [OrderEnum.ascent, OrderEnum.desc]
+        :param offset: 起始偏移量
+        :param limit: 查询数量限制
+        :param kwargs: 用于构建查询过滤条件的任意关键字参数
+        :return: 按照指定字段排序后的模型实例列表
+        """
+        if (limit is not None and limit < 0) or offset < 0:
+            raise ValueError("Limit and offset must be non-negative.")
+
+        filters = self._parse_filters(**kwargs)
+        query = select(self.model).filter(*filters)
+
+        query = (
+            self._apply_order_by(query, order_bys, orders).offset(offset).limit(limit)
+        )
+
+        result = await session.execute(query)
+
+        return list(result.scalars().all())
 
     async def count(
         self,
@@ -203,17 +272,18 @@ class BaseCRUD(Generic[ModelType]):
     ) -> int:
         """
         获取模型实例的数量
-        :param session:
+        :param session: 异步数据库会话
         :param kwargs:
-        :return:
+        :return: 符合条件的记录总数，若无结果则返回 0
         """
+        filters = self._parse_filters(**kwargs)
         count_query = select(func.count()).select_from(self.model)
-        count_query = count_query.filter_by(**kwargs)
-        total_count: Optional[int] = await session.scalar(count_query)
-        if total_count is None:
-            raise ValueError("Could not find the count.")
 
-        return total_count
+        if filters:
+            count_query = count_query.where(*filters)
+        total_count: Optional[int] = await session.scalar(count_query)
+
+        return total_count or 0
 
     async def update(
         self,
@@ -225,11 +295,11 @@ class BaseCRUD(Generic[ModelType]):
     ) -> None:
         """
         更新模型实例
-        :param session:
-        :param obj_new:
-        :param allow_multiple:
-        :param commit:
-        :param kwargs:
+        :param session: 异步数据库会话
+        :param obj_new: 新的对象数据，可以是更新模式类型的实例或字典
+        :param allow_multiple: 是否允许更新多个记录，默认为False
+        :param commit: 是否提交事务，默认为True
+        :param kwargs: 额外的关键字参数，用于查询需要更新的记录
         :return:
         """
         total_count = await self.count(session, **kwargs)
@@ -271,7 +341,7 @@ class BaseCRUD(Generic[ModelType]):
     ) -> None:
         """
         删除模型实例
-        :param session:
+        :param session: 异步数据库会话
         :param allow_multiple: 是否允许删除多条记录
         :param commit:
         :param kwargs:
@@ -301,8 +371,8 @@ class BaseCRUD(Generic[ModelType]):
     ) -> None:
         """
         删除模型实例
-        :param session:
-        :param allow_multiple:
+        :param session: 异步数据库会话
+        :param allow_multiple: 是否允许删除多条记录
         :param commit:
         :param kwargs:
         :return:

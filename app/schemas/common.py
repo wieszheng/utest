@@ -7,15 +7,30 @@
 @Software : PyCharm
 """
 
+import inspect
 from datetime import datetime, date, time
 import decimal
 import json
-from typing import TypeVar, Generic, Optional, Any, Dict
+from functools import wraps
+from typing import TypeVar, Generic, Optional, Any, Dict, Callable
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import DeclarativeMeta
 from starlette.responses import JSONResponse
 
 T = TypeVar("T")
+
+
+def unified_resp(func: Callable[..., T]):
+    @wraps(func)
+    async def wrapper(*args, **kwargs) -> T:
+        if inspect.iscoroutinefunction(func):
+            resp = await func(*args, **kwargs) or []
+        else:
+            resp = func(*args, **kwargs) or []
+
+        return Success(data=resp)
+
+    return wrapper
 
 
 class ResponseModel(BaseModel, Generic[T]):
