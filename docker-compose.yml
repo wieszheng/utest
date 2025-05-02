@@ -1,0 +1,25 @@
+version: "3.10"
+services:
+  root:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - /logs:/logs
+    ports:
+      - "8000:8000"
+    networks:
+      server_network:
+        ipv4_address: 192.168.20.18
+        aliases:
+          - root
+
+networks:
+  server_network:
+    name: server_network
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.20.0/24 # 指定网络的子网掩码，需包含服务IP地址
+          gateway: 192.168.20.1
