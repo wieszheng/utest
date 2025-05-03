@@ -6,3 +6,25 @@
 @Author   : shwezheng
 @Software : PyCharm
 """
+
+from app.enums.code import ApiErrorCode
+
+
+class ApiException(Exception):
+    def __init__(
+        self,
+        api_error_code: ApiErrorCode = None,
+        err_code: int = 0,
+        err_code_des: str = "",
+    ):
+        if api_error_code:
+            self.err_code = api_error_code.code
+            self.err_code_des = err_code_des or api_error_code.msg
+        else:
+            self.err_code = err_code
+            self.err_code_des = err_code_des
+
+
+class ApiError(ApiException):
+    def __init__(self, api_error_code: ApiErrorCode):
+        super().__init__(api_error_code)

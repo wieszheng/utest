@@ -15,6 +15,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import traceback
 
+from app.core.exceptions.errors import ApiException
+from app.enums.code import CustomCode
 from app.schemas.common import ApiResponse
 
 CUSTOM_VALIDATION_ERROR_MESSAGES = {
@@ -149,7 +151,7 @@ async def _validation_exception_handler(exc: RequestValidationError | Validation
     data = {"errors": errors} if True else None
 
     return ApiResponse(
-        code=10422,
+        code=422,
         success=False,
         message=f"请求参数校验错误，请检查提交的参数信息：{message}",
         data=data,
@@ -167,10 +169,12 @@ def register_exception(app: FastAPI):
             f"Code:{exc.status_code}\n"
             f"Message:{exc.detail}\n"
         )
+
         return ApiResponse(
+            http_status_code=exc.status_code,
             code=exc.status_code,
             success=False,
-            message=f"{exc.detail}",
+            message=CustomCode.use_code_get_enum_msg(exc.status_code),
         )
 
     @app.exception_handler(RequestValidationError)
@@ -204,6 +208,22 @@ def register_exception(app: FastAPI):
         )
 
         return await _validation_exception_handler(exc)
+
+    @app.exception_handler(ApiException)
+    async def api_exception_handler(request: Request, exc: ApiException):
+        logger.warning(
+            f"业务处理异常\n"
+            f"Method:{request.method}\n"
+            f"URL:{request.url}\n"
+            f"Headers:{request.headers}\n"
+            f"Code:{exc.err_code}\n"
+            f"Message:{exc.err_code_des}\n"
+        )
+        return ApiResponse(
+            code=exc.err_code,
+            success=False,
+            message=exc.err_code_des,
+        )
 
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(request: Request, exc: Exception):

@@ -13,11 +13,16 @@ from app.schemas.common import UTestModel
 
 
 class UserBase(BaseModel):
-    email: EmailStr
     username: str
+    nickname: str
 
 
 class UserCreate(UserBase):
+    password_hash: str
+
+
+class UserEmailCreate(BaseModel):
+    email: EmailStr
     password_hash: str
 
 

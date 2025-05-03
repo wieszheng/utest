@@ -8,8 +8,10 @@
 """
 
 from datetime import datetime, timezone
+from functools import wraps
 from typing import Generic, Any, TypeVar, Type, Union, Optional, Iterable, List
 
+from loguru import logger
 from pydantic import BaseModel
 from sqlalchemy import (
     select,
@@ -25,6 +27,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database.db import async_session_maker
 from app.enums.status import OrderEnum
 
 ModelType = TypeVar("ModelType", bound=Any)
@@ -35,6 +38,40 @@ UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 
 def compute_offset(page: int, items_per_page: int) -> int:
     return (page - 1) * items_per_page
+
+
+def with_session(func):
+    """
+    一个装饰器，用于在没有提供有效的数据库会话时自动创建一个。
+    这个装饰器会检查函数的参数中是否已经提供了一个名为'session'的数据库会话，
+    如果没有或者不是一个有效的AsyncSession实例，它会自动创建一个新的会话，并在该会话中执行被装饰的函数。
+    如果在执行过程中发生任何异常，它会记录错误信息，并重新抛出异常。
+
+    :param func: 被装饰的异步函数，通常是一个与数据库操作相关的函数.
+    :return:
+    """
+
+    @wraps(func)
+    async def wrapper(self, *args, **kwargs):
+        try:
+            existing_session = kwargs.get("session")
+            if existing_session and isinstance(existing_session, AsyncSession):
+                return await func(self, *args, **kwargs)
+            else:
+                async with async_session_maker() as session:
+                    # async with session.begin():
+                    kwargs["session"] = session
+                    return await func(self, *args, **kwargs)
+        except Exception as e:
+            logger.error(
+                f"操作Model：{self.model.__name__}\n"
+                f"方法：{func.__name__}\n"
+                f"参数：args：{[*args]}, kwargs：{kwargs}\n"
+                f"错误：{e}\n"
+            )
+            raise
+
+    return wrapper
 
 
 class BaseCRUD(Generic[ModelType]):
@@ -123,11 +160,12 @@ class BaseCRUD(Generic[ModelType]):
 
         return query
 
+    @with_session
     async def create(
         self,
-        session: AsyncSession,
         obj: Union[CreateSchemaType, dict[str, Any]],
         commit: bool = True,
+        session: AsyncSession = None,
     ) -> ModelType:
         """
         创建模型的新实例
@@ -147,11 +185,12 @@ class BaseCRUD(Generic[ModelType]):
             await session.commit()
         return ins
 
+    @with_session
     async def create_multiple(
         self,
-        session: AsyncSession,
         objs: Iterable[Union[CreateSchemaType, dict[str, Any]]],
         commit: bool = True,
+        session: AsyncSession = None,
     ) -> List[ModelType]:
         """
         创建多个模型的新示例
@@ -175,9 +214,10 @@ class BaseCRUD(Generic[ModelType]):
 
         return ins_list
 
+    @with_session
     async def get(
         self,
-        session: AsyncSession,
+        session: AsyncSession = None,
         **kwargs: Any,
     ) -> ModelType | None:
         """
@@ -194,7 +234,8 @@ class BaseCRUD(Generic[ModelType]):
             return None
         return result
 
-    async def exists(self, session: AsyncSession, **kwargs: Any) -> bool:
+    @with_session
+    async def exists(self, session: AsyncSession = None, **kwargs: Any) -> bool:
         """
         检查模型实例是否存在
         :param session: 异步数据库会话.
@@ -207,9 +248,10 @@ class BaseCRUD(Generic[ModelType]):
         row = await session.execute(query)
         return row.first() is not None
 
+    @with_session
     async def get_multiple(
         self,
-        session: AsyncSession,
+        session: AsyncSession = None,
         offset: int = 0,
         limit: int = 100,
         **kwargs: Any,
@@ -231,9 +273,10 @@ class BaseCRUD(Generic[ModelType]):
 
         return list(result.scalars().all())
 
+    @with_session
     async def get_multiple_ordered(
         self,
-        session: AsyncSession,
+        session: AsyncSession = None,
         order_bys: Union[str, list[str]] = "uid",
         orders: Union[str, list[OrderEnum]] = OrderEnum.ascent,
         offset: int = 0,
@@ -265,9 +308,10 @@ class BaseCRUD(Generic[ModelType]):
 
         return list(result.scalars().all())
 
+    @with_session
     async def count(
         self,
-        session: AsyncSession,
+        session: AsyncSession = None,
         **kwargs: Any,
     ) -> int:
         """
@@ -285,12 +329,13 @@ class BaseCRUD(Generic[ModelType]):
 
         return total_count or 0
 
+    @with_session
     async def update(
         self,
-        session: AsyncSession,
         obj_new: Union[UpdateSchemaType, dict[str, Any]],
         allow_multiple: bool = False,
         commit: bool = True,
+        session: AsyncSession = None,
         **kwargs: Any,
     ) -> None:
         """
@@ -332,9 +377,10 @@ class BaseCRUD(Generic[ModelType]):
             await session.execute(query)
             await session.commit()
 
+    @with_session
     async def delete_data(
         self,
-        session: AsyncSession,
+        session: AsyncSession = None,
         allow_multiple: bool = False,
         commit: bool = True,
         **kwargs: Any,
@@ -362,9 +408,10 @@ class BaseCRUD(Generic[ModelType]):
             await session.execute(query)
             await session.commit()
 
+    @with_session
     async def delete(
         self,
-        session: AsyncSession,
+        session: AsyncSession = None,
         allow_multiple: bool = False,
         commit: bool = True,
         **kwargs: Any,

@@ -14,7 +14,9 @@ from typing import List
 from apscheduler.triggers.cron import CronTrigger
 from fastapi import APIRouter, Path
 
+from app.core.exceptions.errors import ApiError
 from app.core.scheduler import scheduler
+from app.enums.code import ApiErrorCode
 from app.schemas.common import ResponseModel
 from app.schemas.test_plan import TaskJob, CronJob, IntervalJob, DateJob
 
@@ -62,7 +64,7 @@ async def get_task(
 ) -> ResponseModel[TaskJob]:
     job = scheduler.get_job(job_id=job)
     if not job:
-        raise Exception("任务不存在")
+        raise ApiError(ApiErrorCode.SCHEDULER_JOB_NOT_FOUND)
 
     job_info = TaskJob(
         **{
@@ -94,21 +96,31 @@ async def create_job(plan_id: str, plan_name: str, cron: str) -> ResponseModel:
 
 @router.post("/cron", summary="添加 corn 任务")
 async def add_cron_task(job: CronJob) -> ResponseModel:
+    if scheduler.get_job(job.id):
+        raise ApiError(ApiErrorCode.SCHEDULER_JOB_ALREADY_EXISTS)
+
     job = scheduler.add_job(
         **job.model_dump(),
         args=("add_cron_task",),
     )
+
     return ResponseModel(data=job.id)
 
 
 @router.post("/interval", summary="添加 interval 任务")
 async def add_interval_task(job: IntervalJob) -> ResponseModel:
+    if scheduler.get_job(job.id):
+        raise ApiError(ApiErrorCode.SCHEDULER_JOB_ALREADY_EXISTS)
+
     job = scheduler.add_job(**job.model_dump(), args=("add_cron_task",))
     return ResponseModel(data=job.id)
 
 
 @router.post("/date", summary="添加 date 任务")
 async def add_date_task(job: DateJob) -> ResponseModel:
+    if scheduler.get_job(job.id):
+        raise ApiError(ApiErrorCode.SCHEDULER_JOB_ALREADY_EXISTS)
+
     job = scheduler.add_job(**job.model_dump(), args=("add_cron_task",))
     return ResponseModel(data=job.id)
 
@@ -116,8 +128,9 @@ async def add_date_task(job: DateJob) -> ResponseModel:
 @router.put("/job", summary="修改任务")
 async def update_job(plan_id: str, cron: str) -> ResponseModel:
     job = scheduler.get_job(str(plan_id))
-    if job:
-        job.remove()
+    if not job:
+        raise ApiError(ApiErrorCode.SCHEDULER_JOB_NOT_FOUND)
+    job.remove()
 
     job = scheduler.add_job(
         func=print_task,
@@ -132,31 +145,34 @@ async def update_job(plan_id: str, cron: str) -> ResponseModel:
 @router.put("/{plan_id}/pause", summary="暂停任务")
 async def pause_job(plan_id: str = Path(..., description="任务ID")) -> ResponseModel:
     job = scheduler.get_job(job_id=plan_id)
-    if job:
-        job.pause()
+    if not job:
+        raise ApiError(ApiErrorCode.SCHEDULER_JOB_NOT_FOUND)
+    job.pause()
     return ResponseModel(data=job.id)
 
 
 @router.post("/{plan_id}/resume", summary="恢复任务")
 async def resume_job(plan_id: str = Path(..., description="任务ID")) -> ResponseModel:
     job = scheduler.get_job(job_id=plan_id)
-    if job:
-        job.resume()
+    if not job:
+        raise ApiError(ApiErrorCode.SCHEDULER_JOB_NOT_FOUND)
+    job.resume()
     return ResponseModel(data=plan_id)
 
 
 @router.post("/{plan_id}/stop", summary="删除任务")
 async def delete_task(plan_id: str = Path(..., description="任务ID")) -> ResponseModel:
     job = scheduler.get_job(job_id=plan_id)
-    if job:
-        job.remove()
+    if not job:
+        raise ApiError(ApiErrorCode.SCHEDULER_JOB_NOT_FOUND)
+    job.remove()
     return ResponseModel(data=plan_id)
 
 
 @router.post("/{plan_id}/run", summary="执行任务")
 async def run_task(plan_id: str = Path(..., description="任务ID")) -> ResponseModel:
-    task = scheduler.get_job(job_id=plan_id)
-    if not task:
-        raise Exception("任务不存在")
-    task = scheduler.modify_job(job_id=plan_id, next_run_time=datetime.now())
-    return ResponseModel(data=task.id)
+    job = scheduler.get_job(job_id=plan_id)
+    if not job:
+        raise ApiError(ApiErrorCode.SCHEDULER_JOB_NOT_FOUND)
+    job = scheduler.modify_job(job_id=plan_id, next_run_time=datetime.now())
+    return ResponseModel(data=job.id)

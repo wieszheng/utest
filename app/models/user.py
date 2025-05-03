@@ -24,14 +24,17 @@ class User(UTestModel):
     username: Mapped[str] = mapped_column(
         String(64), unique=True, index=True, sort_order=2
     )
-    email: Mapped[EmailStr] = mapped_column(
+    nickname: Mapped[str] = mapped_column(
         String(64), unique=True, index=True, sort_order=3
     )
-    password_hash: Mapped[str] = mapped_column(
-        String(180), nullable=False, sort_order=4
+    email: Mapped[EmailStr | None] = mapped_column(
+        String(64), unique=True, nullable=True, index=True, sort_order=4
     )
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, sort_order=5)
-    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, sort_order=6)
+    password_hash: Mapped[str] = mapped_column(
+        String(180), nullable=False, sort_order=5
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, sort_order=6)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, sort_order=7)
     last_login: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), default=None, nullable=True, sort_order=7
+        DateTime(timezone=True), default=None, nullable=True, sort_order=8
     )

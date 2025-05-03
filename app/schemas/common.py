@@ -113,7 +113,7 @@ class ApiResponse(JSONResponse):
     code = 200
     success = False
     message = "ok"
-    data: Optional[Dict[str, Any]] = None  # 结果可以是{} 或 []
+    data: Optional[Dict[str, Any]] = {}  # 结果可以是{} 或 []
 
     def __init__(
         self,
