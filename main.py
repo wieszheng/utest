@@ -18,7 +18,7 @@ from app.api import api_router_v1
 from app.core.exceptions.exception_handler import register_exception
 from app.tools.openapi import get_stoplight_ui_html
 
-from config import settings
+from config import settings, SERVER_LOG_FILE, ERROR_LOG_FILE
 
 description = """
     \n\n![](https://i.ibb.co/v3Yt03v/todo-api-background.png)\n\n ## \U0001f4ab Overview\n\nTo Do API provides a simple way
@@ -30,6 +30,25 @@ description = """
     the API docs.\n\n### \U0001f3c1 Trying out your own API Specification\nElements can be used to generate API docs for
     any OpenAPI document. Replace this OpenAPI with a URL to your own OpenAPI document to get started.
 """
+
+
+LOGGING_CONF: dict = {
+    "server_handler": {
+        "file": SERVER_LOG_FILE,
+        "level": "INFO",
+        "rotation": "10 MB",
+        "backtrace": False,
+        "diagnose": False,
+    },
+    "error_handler": {
+        "file": ERROR_LOG_FILE,
+        "level": "ERROR",
+        "rotation": "10 MB",
+        "backtrace": True,
+        "diagnose": True,
+    },
+}
+# init_logging(LOGGING_CONF)
 
 app = FastAPI(
     title=settings.APP_NAME,

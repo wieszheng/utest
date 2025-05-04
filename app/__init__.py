@@ -9,6 +9,8 @@
 
 import logging
 from contextlib import asynccontextmanager
+from types import FrameType
+from typing import cast
 
 from fastapi import FastAPI
 from loguru import logger
@@ -18,20 +20,20 @@ from app.models import create_table
 
 
 class InterceptHandler(logging.Handler):
-    def emit(self, record):
+    def emit(self, record: logging.LogRecord) -> None:
         try:
             level = logger.level(record.levelname).name
         except ValueError:
-            level = record.levelno
+            level = str(record.levelno)
 
-        # 构建 Loguru 记录
         frame, depth = logging.currentframe(), 2
-        while frame.f_code.co_filename == logging.__file__:
-            frame = frame.f_back
+        while frame.f_code.co_filename == logging.__file__:  # noqa: WPS609
+            frame = cast(FrameType, frame.f_back)
             depth += 1
 
         logger.opt(depth=depth, exception=record.exc_info).log(
-            level, record.getMessage()
+            level,
+            record.getMessage(),
         )
 
 
@@ -42,11 +44,19 @@ def init_logging(logging_conf: dict):
     :return:
     """
     logger.info("初始化日志记录")
-    for name in logging.root.manager.loggerDict:
-        if name.startswith("uvicorn"):
-            logging.getLogger(name).handlers = []
+    LOGGER_NAMES = ("uvicorn.asgi", "uvicorn.access", "uvicorn")
 
-    logging.getLogger("uvicorn").handlers = [InterceptHandler()]
+    # change handler for default uvicorn logger
+    logging.getLogger().handlers = [InterceptHandler()]
+    for logger_name in LOGGER_NAMES:
+        logging_logger = logging.getLogger(logger_name)
+        logging_logger.handlers = [InterceptHandler()]
+
+    # for name in logging.root.manager.loggerDict:
+    #     if name.startswith("uvicorn"):
+    #         logging.getLogger(name).handlers = []
+    #
+    # logging.getLogger("uvicorn").handlers = [InterceptHandler()]
 
     for log_handler, log_conf in logging_conf.items():
         log_file = log_conf.pop("file", None)

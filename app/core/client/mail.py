@@ -7,60 +7,76 @@
 @Software : PyCharm
 """
 
+import asyncio
 import base64
 import json
 import os
-from email.header import Header
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+import random
+from email.message import EmailMessage
+from pathlib import Path
+from typing import Any
 
 import aiosmtplib
+from aiosmtplib import SMTPDataError
 from jinja2 import Template
 
+from app.core.exceptions.errors import ApiException
 from config import ROOT
 
 
 def get_config():
+    file_path = os.path.join(ROOT, "config.json")
+    if not os.path.exists(file_path):
+        raise Exception("没有找的配置文件，请检查")
+    with open(file_path, mode="r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def render_email_template(*, template_name: str, context: dict[str, Any]) -> str:
+    template_str = (
+        Path(__file__).parent.parent.parent / "templates" / template_name
+    ).read_text(encoding="utf-8")
+    html_content = Template(template_str).render(context)
+    return html_content
+
+
+async def send_mail(subject: str, receivers: list[str], html_content: str) -> None:
+    # data = get_config().get("email")
+    from_addr = "wieszheng@qq.com"
+    smtp_server = "smtp.qq.com"
+    password = "gudnpniztrxoffje"
+
+    original_str = "uTest"
     try:
-        file_path = os.path.join(ROOT, "config.json")
-        if not os.path.exists(file_path):
-            raise Exception("没有找的配置文件，请假查")
-        with open(file_path, mode="r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        raise Exception(f"获取系统设置失败，{e}")
+        async with aiosmtplib.SMTP(
+            hostname=smtp_server, port=465, use_tls=True
+        ) as server:
+            message = EmailMessage()
+            message["From"] = (
+                f'"=?UTF-8?B?{base64.b64encode(original_str.encode()).decode()}?=" <{from_addr}>'
+            )
+            message["To"] = ", ".join(receivers)
+            message["Subject"] = subject
+            message.add_alternative(html_content, subtype="html")
+
+            await server.login(from_addr, password)
+            await server.send_message(message)
+    except SMTPDataError as e:
+        raise ApiException(
+            err_code=10001,
+            err_code_des=f"发送邮件失败，请确认邮箱配置是否正确：{e.message}",
+        )
 
 
-def render_html(filepath: str, **kwargs) -> str:
-    with open(filepath, encoding="utf-8") as f:
-        html_str = Template(f.read())
-        return html_str.render(**kwargs)
-
-
-async def send_mail(subject: str, content_msg: str, *recipient) -> None:
-    data = get_config().get("email")
-    from_addr = data.get("from_addr")
-    smtp_server = data.get("smtp_server")
-    password = data.get("password")
-
-    original_str = "uTest 机器人"
-    encoded_bytes = original_str.encode("utf-8")
-    base64_encoded_str = base64.b64encode(encoded_bytes)
-
-    msg = MIMEMultipart("mixed")
-    msg["From"] = Header(
-        f'"=?UTF-8?B?{base64_encoded_str.decode("utf-8")}?=" <{from_addr}>'
+if __name__ == "__main__":
+    content = render_email_template(
+        template_name="verification-email.html",
+        context={"code": str(random.randint(100000, 999999))},
     )
-    msg["To"] = Header("其他同学")
-    msg["Subject"] = Header(subject, "utf-8")
-
-    msg.attach(MIMEText(content_msg, "html", "utf-8"))
-
-    try:
-        server = aiosmtplib.SMTP(hostname=smtp_server, port=465, use_tls=True)
-        await server.connect()
-        await server.login(from_addr, password)
-        await server.sendmail(from_addr, [from_addr, *recipient], msg.as_string())
-        await server.quit()
-    except Exception as e:
-        raise Exception(f"发送测试报告邮件失败：{e}")
+    asyncio.run(
+        send_mail(
+            "验证码",
+            ["3248401072@qq.com", "1970690014@qq.com", "wieszheng@qq.com"],
+            content,
+        )
+    )

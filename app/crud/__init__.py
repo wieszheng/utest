@@ -251,6 +251,7 @@ class BaseCRUD(Generic[ModelType]):
     @with_session
     async def get_multiple(
         self,
+        *,
         session: AsyncSession = None,
         offset: int = 0,
         limit: int = 100,

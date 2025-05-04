@@ -24,6 +24,7 @@ class UserCreate(UserBase):
 class UserEmailCreate(BaseModel):
     email: EmailStr
     password_hash: str
+    code: str
 
 
 class UserUpdate(UserBase):
