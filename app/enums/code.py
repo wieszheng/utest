@@ -65,7 +65,7 @@ class ApiErrorCode(Code):
     USER_ID_REQUIRED = (10007, "用户id不能为空 ❌")
     USER_PASSWORD_REQUIRED = (10010, "密码不能为空 🚫")
     PASSWORD_MISMATCH = (10008, "两次输入的密码不一致 🔐")
-    CAPTCHA_INCORRECT = (10009, "验证码错误 🔑")
+    CAPTCHA_INCORRECT = (10009, "验证码错误或已过期 🔑")
     NEW_PASSWORD_SAME_AS_OLD = (10009, "新密码不能与旧密码相同 🔄")
     OLD_PASSWORD_INCORRECT = (10010, "旧密码错误 ⚠️")
     USER_ACCOUNT_LOCKED = (10011, "用户账号被锁定，请联系管理员 😭")

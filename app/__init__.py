@@ -15,6 +15,7 @@ from typing import cast
 from fastapi import FastAPI
 from loguru import logger
 
+from app.core.client.redis_ import redis_client
 from app.core.scheduler import scheduler
 from app.models import create_table
 
@@ -74,7 +75,10 @@ async def lifespan(app: FastAPI):
     """
     logger.info("Starting up the application")
     await create_table()
+    await redis_client.connect()
 
     scheduler.start()
     yield
+    scheduler.shutdown()
+    await redis_client.disconnect()
     logger.info("Shutting down the application")

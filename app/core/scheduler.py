@@ -10,13 +10,12 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 
-DATABASE_URL = (
-    "mysql+mysqlconnector://root:mysql123@127.0.0.1:3306/utest?charset=utf8mb4"
-)
+from config import settings
 
 job_store = {
     "default": SQLAlchemyJobStore(
-        url=DATABASE_URL,
+        url=f"mysql+mysqlconnector://{settings.MYSQL_USERNAME}:{settings.MYSQL_PASSWORD}@"
+        f"{settings.MYSQL_HOST}:{settings.MYSQL_PORT}/{settings.MYSQL_DATABASE}?charset=utf8mb4",
         tablename="jobs",
         engine_options={"pool_recycle": 1500},
         pickle_protocol=3,

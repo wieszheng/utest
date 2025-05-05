@@ -10,22 +10,21 @@
 import re
 from typing import List
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, BackgroundTasks, Request
 from faker import Faker
-from pydantic import EmailStr
 
-from app.core.client.mail import render_email_template, send_mail
+from app.core.client.mail import render_email_template, send_mail, generate_code
+from app.core.client.redis_ import redis_client
 from app.core.exceptions.errors import ApiError
 from app.core.security import psw_hash
 from app.crud.crud_user import crud_user
 from app.enums.code import ApiErrorCode
 from app.schemas.common import ResponseModel
 from app.schemas.user import UserCreate, User, UserEmailCreate
+from app.tools.default import rate_limit
 
 router = APIRouter()
 fake = Faker()
-
-captcha: str = str(fake.random_int(min=100000, max=999999))
 
 
 @router.post("/user", summary="账户密码创建用户", response_model=ResponseModel[User])
@@ -49,7 +48,9 @@ async def create_user_by_email(user: UserEmailCreate) -> ResponseModel[User]:
     if await crud_user.exists(email=user.email):
         raise ApiError(ApiErrorCode.EMAIL_ALREADY_EXISTS)
 
-    if user.code != captcha:
+    rc = await redis_client.client()
+    stored_code = await rc.get(user.email)
+    if stored_code != user.code:
         raise ApiError(ApiErrorCode.CAPTCHA_INCORRECT)
 
     text = re.sub(r"[^\w]", "", str(user.email).split("@")[0])
@@ -71,19 +72,25 @@ async def create_user_by_email(user: UserEmailCreate) -> ResponseModel[User]:
             "password_hash": psw_hash(user.password_hash),
         }
     )
+    await rc.delete(user.email)
     return ResponseModel(data=user)
 
 
 @router.get("/verification", summary="获取验证码", response_model=ResponseModel)
+@rate_limit(max_calls=1, period=60)
 async def get_verification_code(
-    email: EmailStr = Query(..., description="邮箱地址"),
+    request: Request,
+    background_tasks: BackgroundTasks,
+    email: str = Query(..., description="邮箱地址"),
 ) -> ResponseModel:
-    global captcha
-    captcha = str(fake.random_int(min=100000, max=999999))
+    rc = await redis_client.client()
+
+    code = generate_code()
+    await rc.setex(email, 120, code)
     content = render_email_template(
-        template_name="verification-email.html", context={"code": captcha}
+        template_name="verification-email.html", context={"code": code}
     )
-    await send_mail("注册验证码", [str(email)], content)
+    background_tasks.add_task(send_mail, "注册验证码", [str(email)], content)
     return ResponseModel()
 
 

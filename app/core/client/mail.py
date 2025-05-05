@@ -24,6 +24,10 @@ from app.core.exceptions.errors import ApiException
 from config import ROOT
 
 
+def generate_code() -> str:
+    return str(random.randint(100000, 999999))
+
+
 def get_config():
     file_path = os.path.join(ROOT, "config.json")
     if not os.path.exists(file_path):
