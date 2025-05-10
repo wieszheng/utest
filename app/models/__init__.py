@@ -64,6 +64,9 @@ class UidMixin(AsyncAttrs, DeclarativeBase):
         index=True,
         sort_order=1,
     )
+    create_user: Mapped[str | None] = mapped_column(
+        CHAR(64), default=None, index=True, sort_order=9995
+    )
 
 
 class UTestModel(UidMixin, TimestampMixin, DeleteMixin):

@@ -10,7 +10,7 @@
 import unittest
 from fastapi.testclient import TestClient
 from faker import Faker
-from app.api.v1.users import router
+from app.api.v1.auth.users import router
 
 
 fake = Faker()

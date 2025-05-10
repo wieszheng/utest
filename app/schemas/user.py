@@ -31,5 +31,11 @@ class UserUpdate(UserBase):
     password_hash: str
 
 
-class User(UTestModel, UserBase):
-    pass
+class User(UTestModel, UserBase): ...
+
+
+class CurrentUser(BaseModel):
+    username: str
+    nickname: str
+    email: EmailStr
+    uid: str

@@ -78,12 +78,16 @@ class BaseCRUD(Generic[ModelType]):
     def __init__(
         self,
         model: Type[ModelType],
+        updated_at_column: str = "updated_at",
+        deleted_at_column: str = "deleted_at",
+        is_deleted_column: str = "is_deleted",
     ) -> None:
         self.model = model
+        self.updated_at_column = updated_at_column
+        self.deleted_at_column = deleted_at_column
+        self.is_deleted_column = is_deleted_column
         self.model_col_names = [col.key for col in model.__table__.columns]
-        self.is_deleted_column: str = "is_deleted"
-        self.deleted_at_column: str = "deleted_at"
-        self.updated_at_column: str = "updated_at"
+        # self.model_col_names = {_column.name for _column in inspect(model).c}
 
     def _parse_filters(self, **kwargs: Any) -> list[BinaryExpression]:
         """

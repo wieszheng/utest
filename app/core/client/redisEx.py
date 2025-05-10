@@ -17,10 +17,10 @@ from config import settings
 
 class RedisClient:
     def __init__(self):
-        self.redis: Optional[Redis] = None
+        self.redis_client: Optional[Redis] = None
 
     async def connect(self):
-        self.redis = await aioredis.from_url(
+        self.redis_client = await aioredis.from_url(
             f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",
             max_connections=settings.REDIS_MAX_CONNECTIONS,
             encoding=settings.REDIS_ENCODING,
@@ -29,15 +29,16 @@ class RedisClient:
         )
 
     async def disconnect(self):
-        if self.redis:
-            await self.redis.close()
+        if self.redis_client:
+            await self.redis_client.close()
 
     async def get(self, key: str):
-        if self.redis:
-            return await self.redis.get(key)
+        if self.redis_client:
+            return await self.redis_client.get(key)
 
+    @property
     async def client(self) -> Redis:
-        return self.redis
+        return self.redis_client
 
 
 redis_client = RedisClient()

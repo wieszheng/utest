@@ -14,7 +14,7 @@ from fastapi import APIRouter, Query, BackgroundTasks, Request
 from faker import Faker
 
 from app.core.client.mail import render_email_template, send_mail, generate_code
-from app.core.client.redis_ import redis_client
+from app.core.client.redisEx import redis_client
 from app.core.exceptions.errors import ApiError
 from app.core.security import psw_hash
 from app.crud.crud_user import crud_user
@@ -48,7 +48,7 @@ async def create_user_by_email(user: UserEmailCreate) -> ResponseModel[User]:
     if await crud_user.exists(email=user.email):
         raise ApiError(ApiErrorCode.EMAIL_ALREADY_EXISTS)
 
-    rc = await redis_client.client()
+    rc = await redis_client.client
     stored_code = await rc.get(user.email)
     if stored_code != user.code:
         raise ApiError(ApiErrorCode.CAPTCHA_INCORRECT)
@@ -83,7 +83,7 @@ async def get_verification_code(
     background_tasks: BackgroundTasks,
     email: str = Query(..., description="邮箱地址"),
 ) -> ResponseModel:
-    rc = await redis_client.client()
+    rc = await redis_client.client
 
     code = generate_code()
     await rc.setex(email, 120, code)

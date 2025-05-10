@@ -42,7 +42,9 @@
 
 ### 🏬 架构
 
-![Simplified, conceptual project structure and main application flow](docs/structure.svg)
+<div align="center" >
+    <img src="docs/structure.svg" alt="structure" width="90%" height="90%">
+</div>
 
 _图：简化的概念性项目结构和主要应用程序流。并非所有依赖项都显示。_
 

@@ -15,7 +15,7 @@ from typing import cast
 from fastapi import FastAPI
 from loguru import logger
 
-from app.core.client.redis_ import redis_client
+from app.core.client.redisEx import redis_client
 from app.core.scheduler import scheduler
 from app.models import create_table
 

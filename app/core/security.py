@@ -10,17 +10,15 @@
 import jwt
 import hashlib
 from datetime import timedelta, datetime, timezone
-from typing import Any, Annotated
 
 import bcrypt
-from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 
 from config import settings
 
 ALGORITHM = "HS256"
 SECRET_KEY = "ves8C_LqOJ8_uH_9e0k-7n04Vneha47dMKH_vRwaQrg"
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
 
 def psw_add_salt(password: str) -> str:
@@ -83,35 +81,3 @@ def decode_access_token(token: str) -> str | dict:
     """
     payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     return payload
-
-
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> Any:
-    """
-    获取当前用户
-    :param token:
-    :return:
-    """
-    from app.crud.crud_user import crud_user
-
-    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    username = payload.get("sub")
-    if username is None:
-        raise Exception("Invalid token")
-    user = await crud_user.get(username)
-
-    if user is None:
-        raise Exception("Invalid token")
-    return user
-
-
-# async def get_current_active_user(
-#     current_user: Annotated[User, Depends(get_current_user)],
-# ):
-#     """
-#     获取当前激活用户
-#     :param current_user:
-#     :return:
-#     """
-#     if current_user.disabled:
-#         raise HTTPException(status_code=400, detail="Inactive user")
-#     return current_user
