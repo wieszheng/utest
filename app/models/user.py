@@ -16,7 +16,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.models import UTestModel
 
 
-class User(UTestModel):
+class Users(UTestModel):
     """
     用户模型
     """

@@ -87,6 +87,24 @@ class ApiErrorCode(Code):
     CANNOT_REMOVE_LAST_ADMIN = (10111, "不能删除最后一个管理员 🚫")
     CANNOT_REMOVE_LAST_PROJECT_MEMBER = (10112, "不能删除最后一个项目成员 🚫")
 
+    # Token 令牌相关错误 10200 - 10300
+    INVALID_TOKEN = (10200, "无效的令牌，请重新登录 ⚠️")
+    EXPIRED_TOKEN = (10201, "令牌已过期，请重新登录 ⏳")
+    TOKEN_NOT_PROVIDED = (10202, "未提供访问令牌，请检查请求头 ❌")
+    TOKEN_GENERATION_FAILED = (10203, "生成令牌失败，请稍后重试 🔧")
+    TOKEN_REVOKED = (10204, "令牌已被吊销，请重新登录 🚫")
+    UNSUPPORTED_TOKEN_TYPE = (10205, "不支持的令牌类型 ⚠️")
+    REFRESH_TOKEN_EXPIRED = (10206, "刷新令牌已过期，请重新认证 ⏳")
+    INVALID_REFRESH_TOKEN = (10207, "无效的刷新令牌，请重新登录 🔁")
+
+    # 测试用例相关错误码（建议添加）
+    TEST_CASE_NOT_FOUND = (12001, "测试用例不存在，请确认ID ❌")
+    TEST_CASE_ALREADY_EXISTS = (12002, "测试用例已存在，请勿重复添加 🚫")
+    TEST_CASE_CREATE_FAILED = (12003, "测试用例创建失败，请检查数据 🛠️")
+    TEST_CASE_OPERATION_FAILED = (12003, "测试用例操作失败，请重试 🔄")
+    TEST_CASE_UPDATE_FAILED = (12004, "测试用例更新失败，请检查数据 🛠️")
+    TEST_CASE_DELETE_FAILED = (12005, "测试用例删除失败，请稍后再试 🗑️")
+
     # 调度器相关错误 20000 - 20100
     SCHEDULER_JOB_ALREADY_EXISTS = (20001, "任务ID已存在，请更换ID 🔄")
     SCHEDULER_TRIGGER_EXPIRED = (20002, "触发器已过期，不会再次执行 ⏳")

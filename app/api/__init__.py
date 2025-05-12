@@ -12,13 +12,17 @@ from fastapi import APIRouter
 from app.api.v1.auth import users
 from app.api.v1.testcase import test_plan
 from app.api.v1.common import qrcode
+from app.api.v1.testcase import test_case
+from app.api.v1 import project
 
 api_router_v1 = APIRouter()
 [
     api_router_v1.include_router(router, prefix=prefix, tags=[tag])
     for router, prefix, tag in [
-        (users.router, "/system/users", "System users"),
+        (users.router, "/system", "System users"),
         (test_plan.router, "/testplan", "Testplan"),
         (qrcode.router, "/qrcode", "Qrcode"),
+        (test_case.router, "/testcase", "Testcase"),
+        (project.router, "/project", "Project"),
     ]
 ]

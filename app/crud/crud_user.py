@@ -8,10 +8,10 @@
 """
 
 from app.crud import BaseCRUD
-from app.models.user import User
+from app.models.user import Users
 
 
-class CRUDUser(BaseCRUD[User]): ...
+class CRUDUser(BaseCRUD[Users]): ...
 
 
-crud_user: CRUDUser = CRUDUser(User)
+crud_user: CRUDUser = CRUDUser(Users)

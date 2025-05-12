@@ -8,19 +8,22 @@
 """
 
 import re
-from typing import List
+from typing import List, Annotated
 
-from fastapi import APIRouter, Query, BackgroundTasks, Request
+from fastapi import APIRouter, Query, BackgroundTasks, Request, Depends
 from faker import Faker
+from fastapi.security import OAuth2PasswordRequestForm
 
+from app.api.v1 import get_current_user
 from app.core.client.mail import render_email_template, send_mail, generate_code
 from app.core.client.redisEx import redis_client
 from app.core.exceptions.errors import ApiError
-from app.core.security import psw_hash
+from app.core.security import psw_hash, create_access_token, psw_verify
 from app.crud.crud_user import crud_user
 from app.enums.code import ApiErrorCode
+from app.models.user import Users
 from app.schemas.common import ResponseModel
-from app.schemas.user import UserCreate, User, UserEmailCreate
+from app.schemas.user import UserCreate, User, UserEmailCreate, Token
 from app.tools.default import rate_limit
 
 router = APIRouter()
@@ -29,6 +32,9 @@ fake = Faker()
 
 @router.post("/user", summary="账户密码创建用户", response_model=ResponseModel[User])
 async def create_user(user: UserCreate) -> ResponseModel[User]:
+    """
+    账户密码创建用户
+    """
     if not user.password_hash:
         raise ApiError(ApiErrorCode.USER_PASSWORD_REQUIRED)
     if await crud_user.exists(username=user.username):
@@ -43,6 +49,9 @@ async def create_user(user: UserCreate) -> ResponseModel[User]:
 
 @router.post("/email", summary="邮箱号创建用户", response_model=ResponseModel[User])
 async def create_user_by_email(user: UserEmailCreate) -> ResponseModel[User]:
+    """
+    邮箱号创建用户
+    """
     if not user.password_hash:
         raise ApiError(ApiErrorCode.USER_PASSWORD_REQUIRED)
     if await crud_user.exists(email=user.email):
@@ -83,6 +92,9 @@ async def get_verification_code(
     background_tasks: BackgroundTasks,
     email: str = Query(..., description="邮箱地址"),
 ) -> ResponseModel:
+    """
+    获取注册验证码
+    """
     rc = await redis_client.client
 
     code = generate_code()
@@ -96,6 +108,47 @@ async def get_verification_code(
 
 @router.get("/users/", response_model=ResponseModel[List[User]])
 async def read_users(limit: int = 100, offset: int = 0) -> ResponseModel[List[User]]:
-    users: List[User] = await crud_user.get_multiple(offset=offset, limit=limit)
+    users: List[Users] = await crud_user.get_multiple(offset=offset, limit=limit)
 
     return ResponseModel(data=users)
+
+
+@router.post("/login", summary="用户登录", response_model=ResponseModel[Token])
+async def login(username: str, password: str) -> ResponseModel[Token]:
+    """
+    用户账号密码登录
+    """
+    user = await crud_user.get(username=username)
+
+    if not user:
+        raise ApiError(ApiErrorCode.WRONG_USER_NAME_OR_PASSWORD)
+    if not psw_verify(password, user.password_hash):
+        raise ApiError(ApiErrorCode.WRONG_USER_NAME_OR_PASSWORD)
+    access_token = create_access_token(data={"sub": user.username})
+
+    return ResponseModel(data=Token(access_token=access_token, token_type="bearer"))
+
+
+@router.post("/token", summary="token", response_model=Token)
+async def login_for_access_token(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+) -> Token:
+    """
+    docs获取token
+    """
+    user = await crud_user.get(username=form_data.username)
+
+    if not user:
+        raise ApiError(ApiErrorCode.WRONG_USER_NAME_OR_PASSWORD)
+    if not psw_verify(form_data.password, user.password_hash):
+        raise ApiError(ApiErrorCode.WRONG_USER_NAME_OR_PASSWORD)
+    access_token = create_access_token(data={"sub": user.username})
+
+    return Token(access_token=access_token, token_type="bearer")
+
+
+@router.get("/me", response_model=User)
+async def read_users_me(
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    return current_user
