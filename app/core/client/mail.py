@@ -48,7 +48,7 @@ async def send_mail(subject: str, receivers: list[str], html_content: str) -> No
     # data = get_config().get("email")
     from_addr = "wieszheng@qq.com"
     smtp_server = "smtp.qq.com"
-    password = "gudnpniztrxoffje"
+    password = "*********"
 
     original_str = "uTest"
     try:
@@ -74,13 +74,13 @@ async def send_mail(subject: str, receivers: list[str], html_content: str) -> No
 
 if __name__ == "__main__":
     content = render_email_template(
-        template_name="verification-email.html",
+        template_name="api-test-result.html",
         context={"code": str(random.randint(100000, 999999))},
     )
     asyncio.run(
         send_mail(
-            "验证码",
-            ["3248401072@qq.com", "1970690014@qq.com", "wieszheng@qq.com"],
+            "正在使用邮箱注册帐号，请查收校验码！",
+            ["3248401072@qq.com"],
             content,
         )
     )

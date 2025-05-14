@@ -16,6 +16,20 @@ class CaseStatusEnum(str, Enum):
     NORMAL_OPERATION = "normal_operation"  # 正常运作
 
 
+class CaseTypeEnum(str, Enum):
+    FUNCTIONAL_TEST = "functional_test"  # 功能测试
+    PERFORMANCE_TEST = "performance_test"  # 性能测试
+    SECURITY_TEST = "security_test"  # 安全测试
+    OTHER = "other"  # 其他
+
+
+class CaseExecStatus(int, Enum):
+    error = 0
+    success = 1
+    skip = 2
+    fail = 3
+
+
 class CaseTagEnum(str, Enum):
     FUNCTIONAL_TEST = "functional_test"  # 功能测试
     PERFORMANCE_TEST = "performance_test"  # 性能测试
@@ -45,3 +59,20 @@ class HTTPMethod(str, Enum):
     PATCH = "PATCH"
     HEAD = "HEAD"
     OPTIONS = "OPTIONS"
+
+
+class AssertOperator(str, Enum):
+    EQUALS = "equals"  # 等于
+    NOT_EQUALS = "not_equals"  # 不等于
+    CONTAINS = "contains"  # 包含
+    NOT_CONTAINS = "not_contains"  # 不包含
+    GREATER_THAN = "greater_than"  # 大于
+    LESS_THAN = "less_than"  # 小于
+    GREATER_EQUAL = "greater_equal"  # 大于等于
+    LESS_EQUAL = "less_equal"  # 小于等于
+    MATCHES = "matches"  # 正则匹配
+    NOT_MATCHES = "not_matches"  # 正则不匹配
+    IS_NULL = "is_null"  # 为空
+    NOT_NULL = "not_null"  # 不为空
+    IS_TRUE = "is_true"  # 为true
+    IS_FALSE = "is_false"  # 为false

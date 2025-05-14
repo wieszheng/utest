@@ -7,9 +7,21 @@
 @Software : PyCharm
 """
 
+import asyncio
 from datetime import datetime, timezone
 from functools import wraps
-from typing import Generic, Any, TypeVar, Type, Union, Optional, Iterable, List
+from typing import (
+    Generic,
+    Any,
+    TypeVar,
+    Type,
+    Union,
+    Optional,
+    Iterable,
+    List,
+    Dict,
+    Tuple,
+)
 
 from loguru import logger
 from pydantic import BaseModel
@@ -34,10 +46,6 @@ ModelType = TypeVar("ModelType", bound=Any)
 
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
-
-
-def compute_offset(page: int, items_per_page: int) -> int:
-    return (page - 1) * items_per_page
 
 
 def with_session(func):
@@ -167,42 +175,40 @@ class BaseCRUD(Generic[ModelType]):
     @with_session
     async def create(
         self,
-        obj: Union[CreateSchemaType, dict[str, Any]],
+        obj: Union[CreateSchemaType, Dict[str, Any]],
         commit: bool = True,
         session: AsyncSession = None,
     ) -> ModelType:
         """
-        创建模型的新实例
-
-        :param session：异步数据库会话.
-        :param obj: 包含要保存的数据的 Pydantic 模式或字典.
-        :param commit: 如果为 'True'，则立即提交事务。默认值为 'True'.
-        :return:
+        创建新记录
+        :param session: 异步会话
+        :param obj: 包含字段数据的字典或模型
+        :param commit: 是否立即提交
+        :return: 新创建的模型实例
         """
         if isinstance(obj, dict):
-            ins: ModelType = self.model(**obj)
+            instance: ModelType = self.model(**obj)
         else:
-            ins: ModelType = self.model(**obj.model_dump())
+            instance: ModelType = self.model(**obj.model_dump())
 
-        session.add(ins)
+        session.add(instance)
         if commit:
             await session.commit()
-        return ins
+        return instance
 
     @with_session
     async def create_multiple(
         self,
-        objs: Iterable[Union[CreateSchemaType, dict[str, Any]]],
+        objs: Iterable[Union[CreateSchemaType, Dict[str, Any]]],
         commit: bool = True,
         session: AsyncSession = None,
     ) -> List[ModelType]:
         """
         创建多个模型的新示例
-
-        :param session：异步数据库会话.
+        :param session：异步会话
         :param objs: 包含要保存的多个数据的 Pydantic 模式或字典的列表.
         :param commit: 如果为 'True'，则立即提交事务。默认值为 'True'.
-        :return:
+        :return: 模型实例列表
         """
         ins_list: list[ModelType] = []
         for obj in objs:
@@ -226,9 +232,9 @@ class BaseCRUD(Generic[ModelType]):
     ) -> ModelType | None:
         """
         获取模型实例
-        :param session: 异步数据库会话.
+        :param session: 异步会话
         :param kwargs: 用于构建查询过滤条件的任意关键字参数.
-        :return:
+        :return: 模型实例或None
         """
         filters = self._parse_filters(**kwargs)
         query = select(self.model).filter(*filters)
@@ -263,7 +269,7 @@ class BaseCRUD(Generic[ModelType]):
     ) -> list[ModelType]:
         """
         获取模型实例列表
-        :param session: 异步数据库会话
+        :param session: 异步会话
         :param offset: 查询偏移量，必须为非负整数
         :param limit: 查询条目上限，必须为非负整数，None 表示无上限（慎用）
         :param kwargs: 过滤条件，传递给 _parse_filters 方法
@@ -291,7 +297,7 @@ class BaseCRUD(Generic[ModelType]):
         """
         获取模型实例列表，并按多个字段排序
 
-        :param session: 异步数据库会话
+        :param session: 异步会话
         :param order_bys: 排序字段列表，例如 ["name", "age"] 或单个字段字符串
         :param orders: 对应每个字段的排序方式列表，例如 [OrderEnum.ascent, OrderEnum.desc]
         :param offset: 起始偏移量
@@ -313,6 +319,27 @@ class BaseCRUD(Generic[ModelType]):
 
         return list(result.scalars().all())
 
+    async def get_joined_multiple(
+        self,
+        *,
+        session: AsyncSession = None,
+        join_configs: List[Tuple[Type[ModelType], Any]],  # (模型, 连接条件)
+        selections: List[Any] = None,
+        offset: int = 0,
+        limit: int = 100,
+        **kwargs: Any,
+    ):
+        stmt = select(*selections) if selections else select(self.model)
+
+        for join_model, join_condition in join_configs:
+            stmt = stmt.join(join_model, join_condition)
+
+        filters = self._parse_filters(**kwargs)
+        stmt = stmt.filter(*filters).offset(offset).limit(limit)
+
+        result = await session.execute(stmt)
+        return result.all()
+
     @with_session
     async def count(
         self,
@@ -321,7 +348,7 @@ class BaseCRUD(Generic[ModelType]):
     ) -> int:
         """
         获取模型实例的数量
-        :param session: 异步数据库会话
+        :param session: 异步会话
         :param kwargs:
         :return: 符合条件的记录总数，若无结果则返回 0
         """
@@ -345,7 +372,7 @@ class BaseCRUD(Generic[ModelType]):
     ) -> None:
         """
         更新模型实例
-        :param session: 异步数据库会话
+        :param session: 异步会话
         :param obj_new: 新的对象数据，可以是更新模式类型的实例或字典
         :param allow_multiple: 是否允许更新多个记录，默认为False
         :param commit: 是否提交事务，默认为True
@@ -392,7 +419,7 @@ class BaseCRUD(Generic[ModelType]):
     ) -> None:
         """
         删除模型实例
-        :param session: 异步数据库会话
+        :param session: 异步会话
         :param allow_multiple: 是否允许删除多条记录
         :param commit:
         :param kwargs:
@@ -423,7 +450,7 @@ class BaseCRUD(Generic[ModelType]):
     ) -> None:
         """
         删除模型实例
-        :param session: 异步数据库会话
+        :param session: 异步会话
         :param allow_multiple: 是否允许删除多条记录
         :param commit:
         :param kwargs:
@@ -454,3 +481,35 @@ class BaseCRUD(Generic[ModelType]):
 
         if commit:
             await session.commit()
+
+    @with_session
+    async def paginate(
+        self,
+        page: int = 1,
+        per_page: int = 20,
+        session: AsyncSession = None,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """
+        分页查询
+        :param session: 异步会话
+        :param page: 当前页码
+        :param per_page: 每页数量
+        :param kwargs: 过滤条件
+        :return: 包含数据和分页信息的字典
+        """
+        skip = (page - 1) * per_page
+        filters = self._parse_filters(**kwargs)
+
+        query = select(self.model).filter(*filters).offset(skip).limit(per_page)
+        data, total = await asyncio.gather(
+            session.execute(query), self.count(session, **kwargs)
+        )
+
+        return {
+            "data": data,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": (total + per_page - 1) // per_page,
+        }

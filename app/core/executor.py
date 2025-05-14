@@ -16,7 +16,7 @@ from app.models.case.test_case import TestCase
 
 
 class TestExecutor:
-    async def execute_test_case(self, test_case: TestCase):
+    async def run_single_case(self, test_case: TestCase):
         """
         执行测试用例
         :return:
@@ -57,7 +57,7 @@ class TestExecutor:
 
         return test_result
 
-    async def _verify_response(
+    async def verify_response(
         self, response: aiohttp.ClientResponse, expected_response: Dict[str, Any] | None
     ) -> str:
         if not expected_response:

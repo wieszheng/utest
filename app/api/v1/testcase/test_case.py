@@ -76,6 +76,6 @@ async def run_interface_case(case_id: str) -> ResponseModel:
         raise ApiError(ApiErrorCode.TEST_CASE_NOT_FOUND)
 
     executor = TestExecutor()
-    res = await executor.execute_test_case(case)
+    res = await executor.run_single_case(case)
 
     return ResponseModel(data=res)
