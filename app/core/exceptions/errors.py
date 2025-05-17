@@ -28,3 +28,33 @@ class ApiException(Exception):
 class ApiError(ApiException):
     def __init__(self, api_error_code: ApiErrorCode):
         super().__init__(api_error_code)
+
+
+class TestExecutionError(Exception):
+    """测试执行基础异常类"""
+
+    pass
+
+
+class HTTPRequestError(TestExecutionError):
+    """HTTP请求异常"""
+
+    pass
+
+
+class AssertionError(TestExecutionError):
+    """断言异常"""
+
+    pass
+
+
+class VariableNotFoundError(TestExecutionError):
+    """变量未找到异常"""
+
+    pass
+
+
+class ExtractError(TestExecutionError):
+    """提取值异常"""
+
+    pass

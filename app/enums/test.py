@@ -24,10 +24,10 @@ class CaseTypeEnum(str, Enum):
 
 
 class CaseExecStatus(int, Enum):
-    error = 0
-    success = 1
+    success = 0
+    fail = 1
     skip = 2
-    fail = 3
+    error = 3
 
 
 class CaseTagEnum(str, Enum):
@@ -61,18 +61,28 @@ class HTTPMethod(str, Enum):
     OPTIONS = "OPTIONS"
 
 
+class AssertType(str, Enum):
+    """断言类型"""
+
+    STATUS_CODE = "status_code"  # HTTP状态码
+    HEADER = "header"  # 响应头
+    COOKIE = "cookie"  # Cookie
+    JSON = "json"  # JSON响应体
+    TEXT = "text"  # 文本响应体
+    RESPONSE_TIME = "response_time"  # 响应时间
+
+
 class AssertOperator(str, Enum):
+    """断言操作符"""
+
     EQUALS = "equals"  # 等于
     NOT_EQUALS = "not_equals"  # 不等于
     CONTAINS = "contains"  # 包含
     NOT_CONTAINS = "not_contains"  # 不包含
     GREATER_THAN = "greater_than"  # 大于
     LESS_THAN = "less_than"  # 小于
-    GREATER_EQUAL = "greater_equal"  # 大于等于
-    LESS_EQUAL = "less_equal"  # 小于等于
-    MATCHES = "matches"  # 正则匹配
-    NOT_MATCHES = "not_matches"  # 正则不匹配
+    GREATER_THAN_OR_EQUALS = "gte"  # 大于等于
+    LESS_THAN_OR_EQUALS = "lte"  # 小于等于
+    REGEX_MATCH = "regex_match"  # 正则匹配
     IS_NULL = "is_null"  # 为空
-    NOT_NULL = "not_null"  # 不为空
-    IS_TRUE = "is_true"  # 为true
-    IS_FALSE = "is_false"  # 为false
+    IS_NOT_NULL = "is_not_null"  # 不为空

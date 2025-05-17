@@ -20,6 +20,7 @@ from app.schemas.common import ResponseModel
 from app.schemas.test_case import TestCaseCreate, TestCaseBase, TestCaseDetail
 
 router = APIRouter()
+executor = TestExecutor()
 
 
 @router.post("/", summary="创建接口用例", response_model=ResponseModel[TestCaseBase])
@@ -71,11 +72,16 @@ async def run_interface_case(case_id: str) -> ResponseModel:
     """
     运行单接口用例
     """
-    case = await crud_testcase.get(uid=case_id)
-    if not case:
-        raise ApiError(ApiErrorCode.TEST_CASE_NOT_FOUND)
+    res = await executor.run_single_case(case_id)
 
-    executor = TestExecutor()
-    res = await executor.run_single_case(case)
+    return ResponseModel(data=res)
+
+
+@router.post("/run_multiple", summary="运行所有接口用例")
+async def run_all_interface_case(case_id: List[str], user=Depends(Authentication())):
+    """
+    运行所有接口用例
+    """
+    res = await executor.run_multiple_case(user.uid, case_id)
 
     return ResponseModel(data=res)

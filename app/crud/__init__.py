@@ -379,7 +379,7 @@ class BaseCRUD(Generic[ModelType]):
         :param kwargs: 额外的关键字参数，用于查询需要更新的记录
         :return:
         """
-        total_count = await self.count(session, **kwargs)
+        total_count = await self.count(session=session, **kwargs)
         if total_count == 0:
             raise ValueError("No record found to update.")
         if not allow_multiple and total_count > 1:

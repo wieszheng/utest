@@ -93,7 +93,7 @@ class TestResult(UTestModel):
     )
     cost: Mapped[str] = mapped_column(String(8), comment="耗时")
 
-    test_Case_log: Mapped[str] = mapped_column(Text, comment="日志")
+    test_case_log: Mapped[str] = mapped_column(Text, comment="日志")
 
     status_code: Mapped[int] = mapped_column(Integer, comment="状态码")
     url: Mapped[str] = mapped_column(String(500), comment="请求地址")
@@ -123,20 +123,20 @@ class TestReport(UTestModel):
     接口报告模型
     """
 
-    executor: Mapped[str] = mapped_column(String(64), comment="执行者")
+    executor: Mapped[str] = mapped_column(CHAR(64), comment="执行者")
     env_id: Mapped[str] = mapped_column(CHAR(64), comment="环境ID")
-    cost: Mapped[str] = mapped_column(String(8), comment="耗时")
-    plan_id: Mapped[str] = mapped_column(
+    cost: Mapped[str | None] = mapped_column(String(8), nullable=True, comment="耗时")
+    plan_id: Mapped[str | None] = mapped_column(
         CHAR(64), index=True, nullable=True, comment="计划ID"
     )
     start_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, comment="开始时间"
+        DateTime, default=datetime.now, nullable=False, comment="开始时间"
     )
-    end_at: Mapped[datetime] = mapped_column(
+    end_at: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True, comment="结束时间"
     )
-    success_count: Mapped[int] = mapped_column(Integer, comment="成功数")
-    fail_count: Mapped[int] = mapped_column(Integer, comment="失败数")
-    skip_count: Mapped[int] = mapped_column(Integer, comment="跳过数")
-    error_count: Mapped[int] = mapped_column(Integer, comment="错误数")
-    status: Mapped[str] = mapped_column(comment="状态")
+    success_count: Mapped[int] = mapped_column(Integer, default=0, comment="成功数")
+    fail_count: Mapped[int] = mapped_column(Integer, default=0, comment="失败数")
+    skip_count: Mapped[int] = mapped_column(Integer, default=0, comment="跳过数")
+    error_count: Mapped[int] = mapped_column(Integer, default=0, comment="错误数")
+    status: Mapped[int] = mapped_column(String(8), default=0, comment="状态")
